@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>세계수</title>
+<link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Google+Sans+Mono&family=Noto+Serif+KR:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:   #141218;
+    --sc:   #211f26;
+    --sch:  #2b2930;
+    --on:   #e6e1e5;
+    --onv:  #cac4d0;
+    --outv: #49454f;
+    --pri:  #d0bcff;
+    --pos:  #4db6ac;
+    --neg:  #f2b8b8;
+    --font: 'Google Sans', sans-serif;
+    --mono: 'Google Sans Mono', monospace;
+    --serif: 'Noto Serif KR', serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--on);
+    min-height: 100vh;
+    padding: 24px 16px 48px;
+  }
+
+  /* Header */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 32px;
+    padding: 0 4px;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .header-left canvas { image-rendering: pixelated; image-rendering: crisp-edges; flex-shrink: 0; }
+  .header-title h1 {
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: var(--on);
+  }
+  .header-title span {
+    font-size: 11px;
+    color: var(--onv);
+    margin-top: 2px;
+    display: block;
+  }
+  .header-right { display: flex; align-items: center; gap: 10px; }
+  .refresh-btn {
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    background: var(--sc); color: var(--onv); border: none;
+    border-radius: 20px; padding: 8px 16px;
+    font-size: 13px; line-height: 1;
+    font-family: var(--font); cursor: pointer; transition: background 0.2s;
+  }
+  .refresh-btn:hover { background: var(--sch); color: var(--on); }
+  .refresh-btn.loading svg { animation: spin 1s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .admin-link { font-size: 18px; text-decoration: none; color: var(--onv); }
+
+  /* Section */
+  .section { margin-bottom: 28px; }
+  .section-label {
+    font-size: 11px; font-weight: 500;
+    letter-spacing: 1.2px; text-transform: uppercase;
+    color: var(--onv); margin-bottom: 12px; padding: 0 4px;
+  }
+
+  /* Grid */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 10px; }
+
+  /* Card */
+  .card { background: var(--sc); border-radius: 16px; padding: 16px; transition: background 0.2s; }
+  .card:hover { background: var(--sch); }
+  .card-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 10px; }
+  .card-name { font-size: 13px; font-weight: 700; line-height: 1.2; }
+  .card-symbol { font-size: 10px; color: var(--onv); margin-top: 2px; }
+  .badge { padding: 3px 8px; border-radius: 20px; font-size: 10px; font-weight: 600; flex-shrink: 0; }
+  .badge.above { background: rgba(77,182,172,0.15); color: var(--pos); }
+  .badge.below { background: rgba(242,184,184,0.15); color: var(--neg); }
+  .badge.none  { background: var(--sch); color: var(--onv); }
+  .card-price { font-family: var(--mono); font-size: 20px; font-weight: 700; margin-bottom: 12px; line-height: 1; }
+  .card-price.sm { font-size: 16px; }
+  .stat-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+  .stat-label { font-size: 10px; color: var(--onv); }
+  .stat-val { font-size: 11px; font-weight: 600; font-family: var(--mono); }
+  .stat-val.pos { color: var(--pos); }
+  .stat-val.neg { color: var(--neg); }
+  .stat-val.neu { color: var(--onv); }
+  .divider { height: 1px; background: var(--outv); opacity: 0.4; margin: 6px 0; }
+
+  /* Skeleton */
+  .skeleton {
+    background: linear-gradient(90deg, var(--sch) 25%, var(--sc) 50%, var(--sch) 75%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+    border-radius: 4px;
+  }
+  @keyframes shimmer { to { background-position: -200% 0; } }
+  .sk-price { height: 28px; width: 75%; margin: 10px 0; }
+  .sk-text  { height: 11px; width: 55%; margin: 5px 0; }
+  .sk-text2 { height: 11px; width: 40%; margin: 5px 0; }
+
+  .error-msg { font-size: 11px; color: var(--onv); font-style: italic; margin-top: 8px; }
+
+  @media (max-width: 480px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .card-price { font-size: 17px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <canvas id="logo" width="40" height="40"></canvas>
+    <div class="header-title">
+      <h1>세계수</h1>
+      <span id="updated-label">업데이트 중...</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"/>
+        <path d="M21 3v5h-5"/>
+      </svg>
+      새로고침
+    </button>
+    <a class="admin-link" href="admin.html">⚙️</a>
+  </div>
+</div>
+
+<div class="section">
+  <div class="section-label">크립토</div>
+  <div class="grid" id="crypto-grid"></div>
+</div>
+<div class="section">
+  <div class="section-label">도미넌스</div>
+  <div class="grid" id="dom-grid"></div>
+</div>
+<div class="section">
+  <div class="section-label">매크로</div>
+  <div class="grid" id="macro-grid"></div>
+</div>
+
+<script>
+// ── 로고 ────────────────────────────────────────────────
+const LC = { P1:'#d0bcff',P2:'#9a82db',P3:'#6650a4',T1:'#4db6ac',T2:'#2e7d72' };
+const MAP16 = [
+  [0,0,0,0,0,0,0,'T1',0,0,0,0,0,0,0,0],
+  [0,0,0,0,0,'T1','T2','P1','T2','T1',0,0,0,0,0,0],
+  [0,0,0,'T1','T2','P2','P1','P1','P1','P2','T2','T1',0,0,0,0],
+  [0,0,'T1','T2','P2','P1','P1','P1','P1','P1','P2','T2','T1',0,0,0],
+  [0,0,0,'T2','P2','P1','P1','P1','P1','P1','P2','T2',0,0,0,0],
+  [0,0,0,0,'T1','P2','P1','P1','P1','P2','T1',0,0,0,0,0],
+  [0,0,0,0,0,'P2','P1','P1','P1','P2',0,0,0,0,0,0],
+  [0,'T1','T2',0,0,'P2','P1','P1','P1','P2',0,0,'T2','T1',0,0],
+  [0,'T2','P2','P2',0,'P3','P2','P1','P2','P3',0,'P2','P2','T2',0,0],
+  [0,0,'T1','T2','P3','P3','P2','P2','P2','P3','P3','T2','T1',0,0,0],
+  [0,0,0,0,'P3','P3','P2','P2','P2','P3','P3',0,0,0,0,0],
+  [0,0,0,0,0,'P3','P3','P2','P3','P3',0,0,0,0,0,0],
+  [0,0,'P3',0,0,0,'P3','P3','P3',0,0,0,'P3',0,0,0],
+  [0,'P3','P3','P3',0,0,0,'P3',0,0,0,'P3','P3','P3',0,0],
+  ['P3','P3',0,'P3','P3',0,0,0,0,0,'P3','P3',0,'P3','P3',0],
+  [0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],
+];
+(function() {
+  const canvas = document.getElementById('logo');
+  const ctx = canvas.getContext('2d');
+  const s = 40 / 16;
+  MAP16.forEach((row, r) => row.forEach((k, c) => {
+    if (!k) return;
+    ctx.fillStyle = LC[k];
+    ctx.fillRect(Math.floor(c*s), Math.floor(r*s), Math.ceil(s), Math.ceil(s));
+  }));
+})();
+
+// ── Config ───────────────────────────────────────────────
+const CRYPTO_IDS = {
+  bitcoin:  { name: 'Bitcoin',  symbol: 'BTC' },
+  ethereum: { name: 'Ethereum', symbol: 'ETH' },
+};
+const MACRO_TICKERS = [
+  { symbol: '^IXIC',    display: 'Nasdaq' },
+  { symbol: '^GSPC',    display: 'S&P 500' },
+  { symbol: 'DX-Y.NYB', display: 'Dollar Index' },
+  { symbol: 'GC=F',     display: 'Gold' },
+  { symbol: '^TNX',     display: 'US 10Y' },
+];
+const YAHOO = 'https://query1.finance.yahoo.com/v8/finance/chart/';
+
+// ── Manual MA (admin) ────────────────────────────────────
+function getManualMA(key) {
+  try { return (JSON.parse(localStorage.getItem('ddu_manual_ma365')) || {})[key] ?? null; }
+  catch { return null; }
+}
+function resolveMA(key, computed) {
+  const m = getManualMA(key);
+  return m !== null ? m : computed;
+}
+
+// ── Math helpers ─────────────────────────────────────────
+function ma365(arr) {
+  if (!arr || arr.length < 2) return null;
+  const sl = arr.slice(-365);
+  return sl.reduce((a,b) => a+b, 0) / sl.length;
+}
+function high52(arr) {
+  if (!arr || arr.length === 0) return null;
+  return Math.max(...arr.slice(-365));
+}
+function gap(cur, ma) { return (cur != null && ma) ? ((cur - ma) / ma) * 100 : null; }
+function fromHigh(cur, h) { return (cur != null && h) ? ((cur - h) / h) * 100 : null; }
+
+// ── Format ───────────────────────────────────────────────
+function fmtPrice(n, unit) {
+  if (n == null) return '—';
+  if (unit === '%') return n.toFixed(2) + '%';
+  if (n >= 10000) return '$' + n.toLocaleString('en-US', { maximumFractionDigits: 0 });
+  if (n >= 1)     return '$' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return '$' + n.toFixed(4);
+}
+function fmtPct(n) {
+  if (n == null || isNaN(n)) return '—';
+  return (n >= 0 ? '+' : '') + n.toFixed(2) + '%';
+}
+function pc(n) { return n == null ? 'neu' : n >= 0 ? 'pos' : 'neg'; }
+
+// ── Card HTML ────────────────────────────────────────────
+function card({ name, symbol, price, change24h, maVal, highVal, unit = '$' }) {
+  const g = gap(price, maVal);
+  const h = fromHigh(price, highVal);
+  const badge = g == null
+    ? `<span class="badge none">—</span>`
+    : g >= 0
+      ? `<span class="badge above">생명선↑</span>`
+      : `<span class="badge below">생명선↓</span>`;
+  const ps = fmtPrice(price, unit);
+  return `
+    <div class="card">
+      <div class="card-top">
+        <div><div class="card-name">${name}</div><div class="card-symbol">${symbol}</div></div>
+        ${badge}
+      </div>
+      <div class="card-price${ps.length > 10 ? ' sm' : ''}">${ps}</div>
+      <div class="stat-row">
+        <span class="stat-label">24h</span>
+        <span class="stat-val ${pc(change24h)}">${fmtPct(change24h)}</span>
+      </div>
+      <div class="divider"></div>
+      <div class="stat-row">
+        <span class="stat-label">52주 고점</span>
+        <span class="stat-val ${pc(h)}">${fmtPct(h)}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-label">생명선 괴리</span>
+        <span class="stat-val ${pc(g)}">${fmtPct(g)}</span>
+      </div>
+    </div>`;
+}
+function skCard() {
+  return `<div class="card">
+    <div class="skeleton sk-price"></div>
+    <div class="skeleton sk-text"></div>
+    <div class="skeleton sk-text2"></div>
+  </div>`;
+}
+function errCard(name) {
+  return `<div class="card"><div class="card-name">${name}</div><div class="error-msg">로드 실패</div></div>`;
+}
+
+// ── CoinGecko ────────────────────────────────────────────
+async function fetchCrypto() {
+  const ids = Object.keys(CRYPTO_IDS).join(',');
+  const [mkt, ...hists] = await Promise.all([
+    fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd&include_24hr_change=true`).then(r=>r.json()),
+    ...Object.keys(CRYPTO_IDS).map(id =>
+      fetch(`https://api.coingecko.com/api/v3/coins/${id}/market_chart?vs_currency=usd&days=365&interval=daily`).then(r=>r.json())
+    )
+  ]);
+  return Object.entries(CRYPTO_IDS).map(([id, meta], i) => {
+    const prices = hists[i].prices?.map(p=>p[1]) ?? [];
+    return card({
+      name: meta.name, symbol: meta.symbol,
+      price: mkt[id]?.usd,
+      change24h: mkt[id]?.usd_24h_change,
+      maVal: resolveMA(id, ma365(prices)),
+      highVal: high52(prices),
+    });
+  });
+}
+
+// ── Dominance ────────────────────────────────────────────
+async function fetchDom() {
+  const [glob, btcHist, totalHist] = await Promise.all([
+    fetch('https://api.coingecko.com/api/v3/global').then(r=>r.json()),
+    fetch('https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=365&interval=daily').then(r=>r.json()),
+    fetch('https://api.coingecko.com/api/v3/global/market_cap_chart?vs_currency=usd&days=365').then(r=>r.json()),
+  ]);
+  const dom = glob.data?.market_cap_percentage ?? {};
+  const btcD = dom.btc ?? 0;
+  const ethD = dom.eth ?? 0;
+  const usdtD = dom.usdt ?? 0;
+  const othersD = Math.max(0, 100 - btcD - ethD - usdtD);
+
+  let btcDHist = [];
+  if (btcHist.market_caps && totalHist.market_cap_chart?.market_cap) {
+    const bm = btcHist.market_caps.map(p=>p[1]);
+    const tm = totalHist.market_cap_chart.market_cap.map(p=>p[1]);
+    const len = Math.min(bm.length, tm.length);
+    btcDHist = Array.from({length:len}, (_,i) => (bm[i]/tm[i])*100);
+  }
+
+  return [
+    card({ name:'BTC Dom.', symbol:'BTC.D', price:btcD, change24h:null, maVal:resolveMA('BTC.D', ma365(btcDHist)), highVal:high52(btcDHist), unit:'%' }),
+    card({ name:'ETH Dom.', symbol:'ETH.D', price:ethD, change24h:null, maVal:resolveMA('ETH.D', null), highVal:null, unit:'%' }),
+    card({ name:'USDT Dom.', symbol:'USDT.D', price:usdtD, change24h:null, maVal:resolveMA('USDT.D', null), highVal:null, unit:'%' }),
+    card({ name:'Others Dom.', symbol:'OTHERS.D', price:othersD, change24h:null, maVal:resolveMA('OTHERS.D', null), highVal:null, unit:'%' }),
+  ];
+}
+
+// ── Yahoo Finance ─────────────────────────────────────────
+async function fetchMacro(ticker) {
+  const r = await fetch(`${YAHOO}${encodeURIComponent(ticker)}?interval=1d&range=2y`);
+  const d = await r.json();
+  const result = d.chart?.result?.[0];
+  if (!result) throw new Error('no data');
+  const closes = (result.indicators?.quote?.[0]?.close ?? []).filter(v=>v!=null);
+  const cur = closes[closes.length-1];
+  const prev = closes[closes.length-2];
+  return {
+    price: cur,
+    change24h: prev ? ((cur-prev)/prev)*100 : null,
+    maVal: resolveMA(ticker, ma365(closes)),
+    highVal: high52(closes),
+  };
+}
+
+// ── Load ─────────────────────────────────────────────────
+async function loadAll() {
+  const btn = document.getElementById('refreshBtn');
+  btn.classList.add('loading');
+
+  document.getElementById('crypto-grid').innerHTML = skCard().repeat(2);
+  document.getElementById('dom-grid').innerHTML = skCard().repeat(4);
+  document.getElementById('macro-grid').innerHTML = skCard().repeat(5);
+
+  // Crypto
+  try {
+    const cards = await fetchCrypto();
+    document.getElementById('crypto-grid').innerHTML = cards.join('');
+  } catch {
+    document.getElementById('crypto-grid').innerHTML = `<span class="error-msg">데이터 로드 실패</span>`;
+  }
+
+  // Dominance
+  try {
+    const cards = await fetchDom();
+    document.getElementById('dom-grid').innerHTML = cards.join('');
+  } catch {
+    document.getElementById('dom-grid').innerHTML = `<span class="error-msg">데이터 로드 실패</span>`;
+  }
+
+  // Macro
+  const macroCards = new Array(MACRO_TICKERS.length).fill('');
+  await Promise.allSettled(MACRO_TICKERS.map(async (t, i) => {
+    try {
+      const d = await fetchMacro(t.symbol);
+      macroCards[i] = card({ name: t.display, symbol: t.symbol, ...d });
+    } catch {
+      macroCards[i] = errCard(t.display);
+    }
+  }));
+  document.getElementById('macro-grid').innerHTML = macroCards.join('');
+
+  document.getElementById('updated-label').textContent =
+    '업데이트: ' + new Date().toLocaleTimeString('ko-KR', { hour:'2-digit', minute:'2-digit', second:'2-digit' });
+  btn.classList.remove('loading');
+}
+
+loadAll();
+</script>
+</body>
+</html>
